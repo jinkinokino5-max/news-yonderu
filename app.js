@@ -17,8 +17,8 @@
 const NewsQuiz = (() => {
 
   // ===== 設定（GitHub Pages にデプロイする前に書き換えてください）=====
-  const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
-  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const SUPABASE_URL      = 'https://alpshubuznjyyxuvnzhx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscHNodWJ1em5qeXl4dXZuemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTE0OTEsImV4cCI6MjA5MzM2NzQ5MX0.mAMOkf4cW-2o36hvQoBa-sh9VcWuecChspA0E-aCRew';
 
   // ===== ランク（rank_level: 0〜15）=====
   const RANK_NAMES = [
