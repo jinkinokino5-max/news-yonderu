@@ -1,0 +1,354 @@
+/* ===========================================
+   ニュース読んでる？ - ファミコン × 霞が関 CSS
+   =========================================== */
+
+:root {
+  --bg-base:  #0a0f1e;
+  --neon-cy:  #00f5ff;
+  --neon-yl:  #f5e642;
+  --neon-mg:  #ff3df5;
+  --pixel-w:  3px;
+  --text:     #e8e8e8;
+  --text-dim: #9aa3c2;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: 'Press Start 2P', 'MS Gothic', monospace;
+  color: var(--text);
+  background: var(--bg-base);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  letter-spacing: 0.5px;
+  line-height: 1.7;
+}
+
+/* ---------- 走査線エフェクト ---------- */
+.scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0)   0px,
+    rgba(0,0,0,0)   2px,
+    rgba(0,0,0,.18) 3px,
+    rgba(0,0,0,.18) 4px
+  );
+  z-index: 9999;
+}
+
+/* ---------- レイアウト ---------- */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 18px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  font-size: 22px;
+  text-align: center;
+  color: var(--neon-cy);
+  text-shadow:
+    0 0 6px var(--neon-cy),
+    3px 3px 0 #001b1f;
+  margin: 8px 0 4px;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 9px;
+  color: var(--text-dim);
+  margin: 0 0 24px;
+}
+
+.section-title {
+  font-size: 11px;
+  color: var(--neon-yl);
+  margin: 0 0 12px;
+  text-shadow: 2px 2px 0 #1a1a00;
+}
+
+/* ---------- パネル（ドット枠線） ---------- */
+.panel {
+  background: rgba(8, 14, 30, 0.85);
+  border: var(--pixel-w) solid var(--neon-cy);
+  box-shadow:
+     0 0 0 var(--pixel-w) #001b1f inset,
+     0 0 12px rgba(0,245,255,.35);
+  padding: 18px;
+  margin-bottom: 18px;
+  border-radius: 2px;
+}
+
+/* ---------- フォーム ---------- */
+.form { display: flex; flex-direction: column; gap: 10px; }
+.form label { font-size: 9px; color: var(--neon-yl); }
+.form input,
+.select {
+  font-family: inherit;
+  font-size: 11px;
+  background: #050913;
+  color: var(--text);
+  border: 2px solid var(--neon-cy);
+  padding: 10px 8px;
+  outline: none;
+}
+.form input:focus,
+.select:focus {
+  border-color: var(--neon-yl);
+  box-shadow: 0 0 6px var(--neon-yl);
+}
+
+/* ---------- タブ ---------- */
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+.tab {
+  flex: 1;
+  padding: 10px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  background: #11182d;
+  color: var(--text-dim);
+  border: 2px solid #2a3358;
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--neon-cy);
+  color: #001b1f;
+  border-color: var(--neon-cy);
+}
+
+/* ---------- ボタン ---------- */
+.neon-btn {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 14px 16px;
+  background: var(--neon-cy);
+  color: #001b1f;
+  border: var(--pixel-w) solid #001b1f;
+  box-shadow:
+    4px 4px 0 #001b1f,
+    0 0 10px rgba(0,245,255,.6);
+  cursor: pointer;
+  transition: transform .08s;
+}
+.neon-btn:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #001b1f, 0 0 14px var(--neon-cy); }
+.neon-btn:active { transform: translate(2px,2px); box-shadow: 0 0 0 #001b1f; }
+.neon-btn.yellow {
+  background: var(--neon-yl);
+  box-shadow: 4px 4px 0 #1a1a00, 0 0 10px rgba(245,230,66,.55);
+}
+
+.text-link {
+  background: none;
+  border: none;
+  color: var(--neon-cy);
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-top: 12px;
+  display: inline-block;
+}
+
+/* ---------- メニュー ---------- */
+.menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 18px 0;
+}
+@media (max-width: 480px) { .menu { grid-template-columns: 1fr; } }
+
+/* ---------- ランクカード ---------- */
+.rank-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  text-align: center;
+}
+.rank-card .label { display: block; font-size: 8px; color: var(--text-dim); margin-bottom: 6px; }
+.rank-card strong { font-size: 11px; color: var(--neon-cy); }
+
+/* ---------- クイズ ---------- */
+.quiz-panel .question {
+  border-bottom: 2px dashed #2a3358;
+  padding: 14px 0;
+}
+.quiz-panel .question:last-child { border-bottom: none; }
+.q-num   { font-size: 10px; color: var(--neon-yl); margin: 0 0 6px; }
+.q-text  { font-size: 11px; margin: 0 0 10px; line-height: 1.8; }
+.choices { display: flex; flex-direction: column; gap: 6px; }
+.choice  {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; padding: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.choice:hover { border-color: var(--neon-cy); }
+.choice input { accent-color: var(--neon-yl); }
+
+.cat-tag {
+  display: inline-block;
+  font-size: 8px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border: 2px solid currentColor;
+}
+.cat-tag.cyan   { color: var(--neon-cy); }
+.cat-tag.yellow { color: var(--neon-yl); }
+
+/* ---------- グラフ ---------- */
+.chart { display: flex; flex-direction: column; gap: 10px; }
+.chart-row { display: grid; grid-template-columns: 50px 1fr 50px; align-items: center; gap: 8px; }
+.chart-label { font-size: 9px; color: var(--text-dim); }
+.chart-bar   { background: #050913; border: 2px solid #2a3358; height: 18px; position: relative; }
+.chart-fill  { height: 100%; width: 0%; transition: width .3s; }
+.chart-fill.cyan   { background: var(--neon-cy); box-shadow: 0 0 8px var(--neon-cy); }
+.chart-fill.yellow { background: var(--neon-yl); box-shadow: 0 0 8px var(--neon-yl); }
+.chart-rate { font-size: 10px; text-align: right; color: var(--text); }
+
+/* ---------- 統計 ---------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat-card {
+  background: #050913;
+  border: 2px solid var(--neon-cy);
+  padding: 14px 10px;
+  text-align: center;
+}
+.stat-card.big { grid-column: 1 / -1; border-color: var(--neon-yl); }
+.stat-card .label { display:block; font-size: 8px; color: var(--text-dim); margin-bottom: 8px; }
+.stat-card strong { font-size: 14px; color: var(--neon-cy); }
+.stat-card.big strong { font-size: 16px; }
+
+/* ---------- テーブル ---------- */
+.history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+.history th, .history td {
+  border: 2px solid #2a3358;
+  padding: 8px 6px;
+  text-align: center;
+}
+.history th { background: #11182d; color: var(--neon-yl); }
+.history td { color: var(--text); }
+.history tr.me td { background: rgba(245,230,66,.12); color: var(--neon-yl); }
+.history tr.top td { color: var(--neon-cy); }
+
+/* ---------- ユーティリティ ---------- */
+.hidden { display: none !important; }
+.msg    { font-size: 9px; margin-top: 12px; min-height: 16px; }
+.msg.error { color: var(--neon-mg); }
+.neon-yellow { color: var(--neon-yl); }
+.footer { text-align: center; font-size: 8px; color: var(--text-dim); margin-top: 24px; }
+
+/* ---------- 点滅 ---------- */
+.blink { animation: blink 1.2s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+
+/* ===========================================
+   ランクごとの背景（疑似 霞が関）
+   =========================================== */
+
+/* 共通：ビル群シルエット用の擬似要素 */
+body::before {
+  content: '';
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 30vh;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: repeat-x;
+  background-position: bottom;
+  opacity: .6;
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 0-3: 学生〜係員 → 地味なオフィス（紺一色＋格子状の窓灯り） */
+.rank-student::after,
+.rank-official::after {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(0,40,80,.7), transparent 60%);
+}
+.rank-student::before,
+.rank-official::before {
+  background-image:
+    linear-gradient(90deg, #1a2240 0 22px, transparent 22px 30px),
+    linear-gradient(0deg,  rgba(245,230,66,.25) 0 4px, transparent 4px 14px);
+  background-size: 30px 100%, 14px 14px;
+  background-position: bottom left, bottom left;
+}
+
+/* 4-7: 課長補佐〜事務次官 → 中層ビル＋夜景 */
+.rank-bureau::after {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(0,90,160,.6), transparent 65%);
+}
+.rank-bureau::before {
+  height: 38vh;
+  background-image:
+    linear-gradient(90deg, #1d2a55 0 30px, transparent 30px 38px),
+    linear-gradient(0deg, rgba(0,245,255,.3) 0 3px, transparent 3px 12px);
+  background-size: 38px 100%, 14px 12px;
+}
+
+/* 8-12: 衆議院議員〜官房長官 → 国会議事堂シルエット */
+.rank-diet::after {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(120,140,255,.35), transparent 70%),
+    linear-gradient(180deg, #0a0f1e 0%, #1a234a 60%, #0a0f1e 100%);
+}
+.rank-diet::before {
+  height: 42vh;
+  background:
+    /* 中央ドーム */
+    radial-gradient(ellipse 90px 60px at 50% calc(100% - 120px), #2a3470 60%, transparent 62%) no-repeat,
+    /* 左右の塔 */
+    linear-gradient(#2a3470, #2a3470) 30% calc(100% - 80px) / 60px 80px no-repeat,
+    linear-gradient(#2a3470, #2a3470) 70% calc(100% - 80px) / 60px 80px no-repeat,
+    /* ベース建物 */
+    linear-gradient(#222b58, #222b58) 0 calc(100% - 60px) / 100% 60px no-repeat,
+    /* 窓灯り */
+    repeating-linear-gradient(90deg, rgba(245,230,66,.3) 0 4px, transparent 4px 14px) 0 calc(100% - 50px) / 100% 40px;
+}
+
+/* 13-15: 党3役〜総理 → 首相官邸（金色オーラ） */
+.rank-pm::after {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(255,200,80,.45), transparent 70%),
+    linear-gradient(180deg, #0a0f1e 0%, #2a1f0a 80%);
+}
+.rank-pm::before {
+  height: 45vh;
+  background:
+    /* 官邸シルエット（横長の建物） */
+    linear-gradient(#3a2f15, #3a2f15) 10% calc(100% - 100px) / 80% 100px no-repeat,
+    /* 屋根 */
+    linear-gradient(180deg, #2a2010, #2a2010) 5% calc(100% - 110px) / 90% 14px no-repeat,
+    /* 窓灯り（黄金） */
+    repeating-linear-gradient(90deg, rgba(245,200,80,.6) 0 5px, transparent 5px 18px) 10% calc(100% - 80px) / 80% 60px;
+  filter: drop-shadow(0 0 18px rgba(245,200,80,.6));
+}
+.rank-pm .title { color: var(--neon-yl); text-shadow: 0 0 8px var(--neon-yl), 3px 3px 0 #1a1a00; }
