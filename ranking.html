@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | ランキング</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <a href="home.html" class="text-link">← ホーム</a>
+    <h1 class="title blink">ランキング</h1>
+    <p class="subtitle">- 総合スコア = 累計得点 × 受験回数 -</p>
+
+    <section class="panel">
+      <table class="history ranking-table">
+        <thead>
+          <tr>
+            <th>順位</th>
+            <th>ゲスト名</th>
+            <th>得点</th>
+            <th>回数</th>
+            <th>総合</th>
+            <th>ランク</th>
+          </tr>
+        </thead>
+        <tbody id="ranking-body">
+          <tr><td colspan="6">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async () => {
+      const user = await NewsQuiz.requireLogin();
+      if (!user) return;
+
+      const profile = await NewsQuiz.getProfile(user.id);
+      NewsQuiz.applyRankClass(document.body, profile.rank_level);
+
+      const tbody = document.getElementById('ranking-body');
+      const rows = await NewsQuiz.getRanking();
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">まだ受験者がいません。</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+        return `
+          <tr class="${r.id === user.id ? 'me' : ''} ${i < 3 ? 'top' : ''}">
+            <td>${medal}</td>
+            <td>${r.guest_name}</td>
+            <td>${r.total_score}</td>
+            <td>${r.total_attempts}</td>
+            <td class="neon-yellow">${r.total_score * r.total_attempts}</td>
+            <td>${NewsQuiz.RANK_NAMES[r.rank_level]}</td>
+          </tr>
+        `;
+      }).join('');
+    })();
+  </script>
+</body>
+</html>

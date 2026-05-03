@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | ホーム</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <h1 class="title blink">ニュース読んでる？</h1>
+
+    <section class="rank-card panel">
+      <div>
+        <span class="label">プレイヤー</span>
+        <strong id="player-name">--</strong>
+      </div>
+      <div>
+        <span class="label">現在のランク</span>
+        <strong id="player-rank" class="neon-yellow">--</strong>
+      </div>
+      <div>
+        <span class="label">累計スコア</span>
+        <strong id="player-score">--</strong>
+      </div>
+    </section>
+
+    <nav class="menu">
+      <a class="neon-btn"        href="quiz.html">▶ 最新クイズ</a>
+      <a class="neon-btn yellow"  href="my-stats.html">▶ あなたの成績</a>
+      <a class="neon-btn"        href="others-stats.html">▶ 他人の成績</a>
+      <a class="neon-btn yellow"  href="ranking.html">▶ ランキング</a>
+    </nav>
+
+    <button id="logout" class="text-link" type="button">ログアウト</button>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async () => {
+      // ログイン必須
+      const user = await NewsQuiz.requireLogin();
+      if (!user) return;
+
+      // プロフィール取得
+      const profile = await NewsQuiz.getProfile(user.id);
+
+      document.getElementById('player-name').textContent  = profile.guest_name;
+      document.getElementById('player-rank').textContent  = NewsQuiz.RANK_NAMES[profile.rank_level];
+      document.getElementById('player-score').textContent = profile.total_score;
+
+      // ランクに応じた背景クラス
+      NewsQuiz.applyRankClass(document.body, profile.rank_level);
+
+      // ログアウト
+      document.getElementById('logout').addEventListener('click', async () => {
+        await NewsQuiz.signOut();
+        location.href = 'index.html';
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | 他人の成績</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <a href="home.html" class="text-link">← ホーム</a>
+    <h1 class="title">他人の成績</h1>
+
+    <section class="panel">
+      <label for="week-select" class="label">週を選ぶ：</label>
+      <select id="week-select" class="select"></select>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">同じテストの受験者</h2>
+      <table class="history">
+        <thead>
+          <tr><th>順位</th><th>ゲスト名</th><th>得点</th><th>ランク</th></tr>
+        </thead>
+        <tbody id="others-body">
+          <tr><td colspan="4">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async () => {
+      const user = await NewsQuiz.requireLogin();
+      if (!user) return;
+
+      const profile = await NewsQuiz.getProfile(user.id);
+      NewsQuiz.applyRankClass(document.body, profile.rank_level);
+
+      const select = document.getElementById('week-select');
+      const tbody  = document.getElementById('others-body');
+
+      // 開催済みの週リスト
+      const weeks = await NewsQuiz.getAllWeeks();
+      if (weeks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">まだクイズがありません。</td></tr>';
+        return;
+      }
+
+      select.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+
+      async function load(weekKey) {
+        tbody.innerHTML = '<tr><td colspan="4">読み込み中...</td></tr>';
+        const [rows, total] = await Promise.all([
+          NewsQuiz.getOthersStats(weekKey),
+          NewsQuiz.getQuizCount(weekKey),
+        ]);
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4">受験者がいません。</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map((r, i) => `
+          <tr class="${r.user_id === user.id ? 'me' : ''}">
+            <td>${i + 1}</td>
+            <td>${r.guest_name}</td>
+            <td>${r.score} / ${total || 10}</td>
+            <td>${NewsQuiz.RANK_NAMES[r.rank_level]}</td>
+          </tr>
+        `).join('');
+      }
+
+      select.addEventListener('change', () => load(select.value));
+      load(weeks[0]);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | 最新クイズ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <a href="home.html" class="text-link">← ホーム</a>
+    <h1 class="title">最新クイズ</h1>
+    <p id="week-label" class="subtitle">読み込み中...</p>
+
+    <!-- リアルタイム正答率グラフ -->
+    <section class="panel chart-panel">
+      <h2 class="section-title">カテゴリ別 正答率</h2>
+      <div class="chart">
+        <div class="chart-row">
+          <span class="chart-label">政治</span>
+          <div class="chart-bar"><div id="bar-politics" class="chart-fill cyan"></div></div>
+          <span id="rate-politics" class="chart-rate">0%</span>
+        </div>
+        <div class="chart-row">
+          <span class="chart-label">経済</span>
+          <div class="chart-bar"><div id="bar-economy" class="chart-fill yellow"></div></div>
+          <span id="rate-economy" class="chart-rate">0%</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="quiz-container" class="panel quiz-panel">
+      <p>クイズを読み込み中...</p>
+    </section>
+
+    <button id="submit-btn" class="neon-btn yellow hidden" type="button">▶ 結果を保存</button>
+    <p id="result-msg" class="msg"></p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async () => {
+      const user = await NewsQuiz.requireLogin();
+      if (!user) return;
+
+      const profile = await NewsQuiz.getProfile(user.id);
+      NewsQuiz.applyRankClass(document.body, profile.rank_level);
+
+      // 最新の week_key の問題を取得
+      const quizzes = await NewsQuiz.getLatestQuizzes();
+      if (!quizzes || quizzes.length === 0) {
+        document.getElementById('quiz-container').innerHTML =
+          '<p>今週のクイズはまだありません。</p>';
+        return;
+      }
+
+      document.getElementById('week-label').textContent =
+        '今週のテスト：' + quizzes[0].week_key;
+
+      // 'A' / 'B' / 'C' / 'D' を保持。未回答は null
+      const answers = new Array(quizzes.length).fill(null);
+
+      const container = document.getElementById('quiz-container');
+      container.innerHTML = '';
+      quizzes.forEach((q, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'question';
+        const catLabel = NewsQuiz.categoryLabel(q.category);
+        const catClass = NewsQuiz.categoryClass(q.category);
+        wrap.innerHTML = `
+          <p class="q-num">第 ${idx + 1} 問
+            <span class="cat-tag ${catClass}">${catLabel}</span>
+          </p>
+          <p class="q-text">${q.question.replace(/\n/g, '<br>')}</p>
+          <div class="choices">
+            ${['A','B','C','D'].map(letter => {
+              const optKey = 'option_' + letter.toLowerCase();
+              return `
+                <label class="choice">
+                  <input type="radio" name="q${idx}" value="${letter}">
+                  <span>${letter}. ${q[optKey] ?? ''}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        `;
+        container.appendChild(wrap);
+
+        // 選択時にリアルタイム集計
+        wrap.querySelectorAll('input[type=radio]').forEach(r => {
+          r.addEventListener('change', () => {
+            answers[idx] = r.value;  // 'A' | 'B' | 'C' | 'D'
+            updateChart();
+            if (answers.every(a => a !== null)) {
+              document.getElementById('submit-btn').classList.remove('hidden');
+            }
+          });
+        });
+      });
+
+      function updateChart() {
+        let pTotal = 0, pCorrect = 0, eTotal = 0, eCorrect = 0;
+        quizzes.forEach((q, i) => {
+          if (answers[i] === null) return;
+          const ok = answers[i] === q.correct_option;
+          if (q.category === 'politics') { pTotal++; if (ok) pCorrect++; }
+          else                            { eTotal++; if (ok) eCorrect++; }
+        });
+        const pRate = pTotal ? Math.round(pCorrect / pTotal * 100) : 0;
+        const eRate = eTotal ? Math.round(eCorrect / eTotal * 100) : 0;
+        document.getElementById('bar-politics').style.width = pRate + '%';
+        document.getElementById('bar-economy').style.width  = eRate + '%';
+        document.getElementById('rate-politics').textContent = pRate + '%';
+        document.getElementById('rate-economy').textContent  = eRate + '%';
+      }
+
+      // 結果保存
+      document.getElementById('submit-btn').addEventListener('click', async () => {
+        try {
+          const result = await NewsQuiz.submitAnswers(user.id, quizzes, answers);
+          NewsQuiz.showMsg('result-msg',
+            `保存しました！スコア：${result.score}/${result.total}　新しいランク：${NewsQuiz.RANK_NAMES[result.newRank]}`,
+            false);
+          document.getElementById('submit-btn').disabled = true;
+        } catch (err) {
+          NewsQuiz.showMsg('result-msg', '保存失敗：' + err.message, true);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

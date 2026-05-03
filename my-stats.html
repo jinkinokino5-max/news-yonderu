@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | あなたの成績</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <a href="home.html" class="text-link">← ホーム</a>
+    <h1 class="title">あなたの成績</h1>
+
+    <section class="panel stats-grid">
+      <div class="stat-card">
+        <span class="label">今週のスコア</span>
+        <strong id="week-score">--</strong>
+      </div>
+      <div class="stat-card">
+        <span class="label">累計得点</span>
+        <strong id="total-score">--</strong>
+      </div>
+      <div class="stat-card">
+        <span class="label">受験回数</span>
+        <strong id="total-attempts">--</strong>
+      </div>
+      <div class="stat-card big">
+        <span class="label">現在のランク</span>
+        <strong id="current-rank" class="neon-yellow">--</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">過去の受験履歴</h2>
+      <table class="history">
+        <thead>
+          <tr>
+            <th>週</th>
+            <th>スコア</th>
+            <th>政治</th>
+            <th>経済</th>
+            <th>日時</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="5">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async () => {
+      const user = await NewsQuiz.requireLogin();
+      if (!user) return;
+
+      const profile = await NewsQuiz.getProfile(user.id);
+      NewsQuiz.applyRankClass(document.body, profile.rank_level);
+
+      document.getElementById('total-score').textContent    = profile.total_score;
+      document.getElementById('total-attempts').textContent = profile.total_attempts;
+      document.getElementById('current-rank').textContent   = NewsQuiz.RANK_NAMES[profile.rank_level];
+
+      const stats = await NewsQuiz.getMyStats(user.id);
+      document.getElementById('week-score').textContent =
+        stats.thisWeekScore === null
+          ? '未受験'
+          : `${stats.thisWeekScore} / ${stats.thisWeekTotal}`;
+
+      const tbody = document.getElementById('history-body');
+      if (stats.history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">まだ履歴がありません。</td></tr>';
+      } else {
+        tbody.innerHTML = stats.history.map(h => `
+          <tr>
+            <td>${h.week_key}</td>
+            <td>${h.score} / ${h.total}</td>
+            <td>${h.politics_correct} / ${h.politics_total}</td>
+            <td>${h.economy_correct} / ${h.economy_total}</td>
+            <td>${new Date(h.created_at).toLocaleString('ja-JP')}</td>
+          </tr>
+        `).join('');
+      }
+    })();
+  </script>
+</body>
+</html>

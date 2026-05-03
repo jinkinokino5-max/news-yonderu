@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ニュース読んでる？ | ログイン</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="rank-student">
+  <div class="scanlines"></div>
+
+  <main class="container">
+    <h1 class="title blink">ニュース読んでる？</h1>
+    <p class="subtitle">- 霞が関出世クイズ -</p>
+
+    <section class="panel">
+      <div class="tabs">
+        <button id="tab-login"  class="tab active" type="button">ログイン</button>
+        <button id="tab-signup" class="tab"        type="button">アカウント作成</button>
+      </div>
+
+      <!-- ログインフォーム -->
+      <form id="login-form" class="form">
+        <label for="login-name">ゲスト名</label>
+        <input id="login-name" type="text" autocomplete="username" required />
+
+        <label for="login-pass">パスワード</label>
+        <input id="login-pass" type="password" autocomplete="current-password" required />
+
+        <button class="neon-btn" type="submit">▶ ログイン</button>
+      </form>
+
+      <!-- 新規登録フォーム -->
+      <form id="signup-form" class="form hidden">
+        <label for="signup-name">ゲスト名（公開されます）</label>
+        <input id="signup-name" type="text" autocomplete="username" required />
+
+        <label for="signup-pass">パスワード（6文字以上）</label>
+        <input id="signup-pass" type="password" minlength="6" autocomplete="new-password" required />
+
+        <button class="neon-btn yellow" type="submit">▶ アカウント作成</button>
+      </form>
+
+      <p id="msg" class="msg"></p>
+    </section>
+
+    <footer class="footer">
+      <span>© 国会議事堂前ステーション</span>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // タブ切替
+    const tabLogin  = document.getElementById('tab-login');
+    const tabSignup = document.getElementById('tab-signup');
+    const formLogin  = document.getElementById('login-form');
+    const formSignup = document.getElementById('signup-form');
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      formLogin.classList.remove('hidden');
+      formSignup.classList.add('hidden');
+    });
+    tabSignup.addEventListener('click', () => {
+      tabSignup.classList.add('active');
+      tabLogin.classList.remove('active');
+      formSignup.classList.remove('hidden');
+      formLogin.classList.add('hidden');
+    });
+
+    // 送信
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('login-name').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      try {
+        await NewsQuiz.signIn(name, pass);
+        location.href = 'home.html';
+      } catch (err) {
+        NewsQuiz.showMsg('msg', 'ログイン失敗：' + err.message, true);
+      }
+    });
+
+    formSignup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('signup-name').value.trim();
+      const pass = document.getElementById('signup-pass').value;
+      try {
+        await NewsQuiz.signUp(name, pass);
+        NewsQuiz.showMsg('msg', 'アカウントを作成しました！ログインしてください。', false);
+        tabLogin.click();
+      } catch (err) {
+        NewsQuiz.showMsg('msg', '登録失敗：' + err.message, true);
+      }
+    });
+  </script>
+</body>
+</html>
