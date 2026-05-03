@@ -14,36 +14,36 @@
     <h1 class="title blink">ニュース読んでる？</h1>
     <p class="subtitle">- 霞が関出世クイズ -</p>
 
-    <section class="panel">
-      <div class="tabs">
-        <button id="tab-login"  class="tab active" type="button">ログイン</button>
-        <button id="tab-signup" class="tab"        type="button">アカウント作成</button>
-      </div>
-
-      <!-- ログインフォーム -->
-      <form id="login-form" class="form">
-        <label for="login-name">ゲスト名</label>
-        <input id="login-name" type="text" autocomplete="username" required />
-
-        <label for="login-pass">パスワード</label>
-        <input id="login-pass" type="password" autocomplete="current-password" required />
-
-        <button class="neon-btn" type="submit">▶ ログイン</button>
-      </form>
-
-      <!-- 新規登録フォーム -->
-      <form id="signup-form" class="form hidden">
-        <label for="signup-name">ゲスト名（公開されます）</label>
-        <input id="signup-name" type="text" autocomplete="username" required />
-
-        <label for="signup-pass">パスワード（6文字以上）</label>
-        <input id="signup-pass" type="password" minlength="6" autocomplete="new-password" required />
-
-        <button class="neon-btn yellow" type="submit">▶ アカウント作成</button>
-      </form>
-
-      <p id="msg" class="msg"></p>
+    <!-- ① ローディング -->
+    <section id="loading-screen" class="panel">
+      <p style="text-align:center; font-size:10px;">読み込み中...</p>
     </section>
+
+    <!-- ② Google ログインボタン -->
+    <section id="login-screen" class="panel hidden">
+      <p style="text-align:center; font-size:10px; line-height:2;">
+        Google アカウントで<br>
+        ログインしてください
+      </p>
+      <button id="google-login-btn" class="neon-btn yellow" type="button" style="width:100%;">
+        ▶ Google でログイン
+      </button>
+    </section>
+
+    <!-- ③ 初回のみ：ゲスト名入力 -->
+    <section id="guest-name-screen" class="panel hidden">
+      <p style="font-size:10px; line-height:2;">
+        はじめまして！<br>
+        公開用のゲスト名を決めてください。
+      </p>
+      <form id="guest-name-form" class="form">
+        <label for="guest-name-input">ゲスト名（最大 20 文字）</label>
+        <input id="guest-name-input" type="text" required maxlength="20" />
+        <button class="neon-btn yellow" type="submit">▶ 開始</button>
+      </form>
+    </section>
+
+    <p id="msg" class="msg"></p>
 
     <footer class="footer">
       <span>© 国会議事堂前ステーション</span>
@@ -53,47 +53,79 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/app.js"></script>
   <script>
-    // タブ切替
-    const tabLogin  = document.getElementById('tab-login');
-    const tabSignup = document.getElementById('tab-signup');
-    const formLogin  = document.getElementById('login-form');
-    const formSignup = document.getElementById('signup-form');
+    // ---- 表示切替 ----
+    const SCREENS = ['loading-screen', 'login-screen', 'guest-name-screen'];
+    function show(id) {
+      SCREENS.forEach(s => {
+        document.getElementById(s).classList.toggle('hidden', s !== id);
+      });
+    }
 
-    tabLogin.addEventListener('click', () => {
-      tabLogin.classList.add('active');
-      tabSignup.classList.remove('active');
-      formLogin.classList.remove('hidden');
-      formSignup.classList.add('hidden');
-    });
-    tabSignup.addEventListener('click', () => {
-      tabSignup.classList.add('active');
-      tabLogin.classList.remove('active');
-      formSignup.classList.remove('hidden');
-      formLogin.classList.add('hidden');
-    });
+    // ---- 状態 ----
+    let pendingAuthUser = null;  // 初回ログイン中の auth ユーザー
 
-    // 送信
-    formLogin.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
-      const pass = document.getElementById('login-pass').value;
+    // ---- 起動時処理 ----
+    (async () => {
       try {
-        await NewsQuiz.signIn(name, pass);
-        location.href = 'home.html';
+        // 1. すでに localStorage にログイン情報があれば即 home へ
+        if (NewsQuiz.getLocalAuth()) {
+          location.replace('home.html');
+          return;
+        }
+
+        // 2. OAuth コールバック後ならセッションが取れる
+        const authUser = await NewsQuiz.getAuthUser();
+
+        if (!authUser) {
+          // 未ログイン → Google ログインボタン表示
+          show('login-screen');
+          return;
+        }
+
+        // 3. users テーブルに既存プロフィールがあるか
+        const profile = await NewsQuiz.findProfile(authUser.id);
+        if (profile) {
+          // 2回目以降のログイン → そのまま home へ
+          NewsQuiz.setLocalAuth(profile.id, profile.guest_name);
+          location.replace('home.html');
+        } else {
+          // 初回 → ゲスト名入力
+          pendingAuthUser = authUser;
+          show('guest-name-screen');
+        }
       } catch (err) {
-        NewsQuiz.showMsg('msg', 'ログイン失敗：' + err.message, true);
+        NewsQuiz.showMsg('msg', '初期化エラー：' + err.message, true);
+        show('login-screen');
+      }
+    })();
+
+    // ---- Google ログインボタン ----
+    document.getElementById('google-login-btn').addEventListener('click', async () => {
+      try {
+        await NewsQuiz.signInWithGoogle();
+        // この後、Google → Supabase → このページにリダイレクトで戻ってくる
+      } catch (err) {
+        NewsQuiz.showMsg('msg', 'ログイン開始に失敗：' + err.message, true);
       }
     });
 
-    formSignup.addEventListener('submit', async (e) => {
+    // ---- ゲスト名登録 ----
+    document.getElementById('guest-name-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('signup-name').value.trim();
-      const pass = document.getElementById('signup-pass').value;
+      if (!pendingAuthUser) {
+        NewsQuiz.showMsg('msg', 'セッションが切れています。再ログインしてください。', true);
+        show('login-screen');
+        return;
+      }
+      const name = document.getElementById('guest-name-input').value.trim();
+      if (!name) return;
+
       try {
-        await NewsQuiz.signUp(name, pass);
-        NewsQuiz.showMsg('msg', 'アカウントを作成しました！ログインしてください。', false);
-        tabLogin.click();
+        await NewsQuiz.createProfile(pendingAuthUser.id, name);
+        NewsQuiz.setLocalAuth(pendingAuthUser.id, name);
+        location.replace('home.html');
       } catch (err) {
+        // ゲスト名重複（unique 制約）など
         NewsQuiz.showMsg('msg', '登録失敗：' + err.message, true);
       }
     });
