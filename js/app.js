@@ -1,24 +1,27 @@
-/* =====================================================================
- * app.js - ニュース読んでる？ 共通ロジック
+  /* =====================================================================
+ * app.js - ニュース読んでる？ 共通ロジック（Google OAuth 版）
  *
- * Supabase との CRUD と、ランク計算など全画面共通の関数を提供します。
- * すべての画面で window.NewsQuiz として参照できます。
+ * 認証は Supabase の Google OAuth を使用。ログイン状態は localStorage
+ * (newsquiz_user_id, newsquiz_guest_name) で管理する。
  *
  * Supabase 側のテーブル想定:
  *   users    : id (uuid, auth.users.id と同じ) / guest_name (text)
  *              total_score (int) / total_attempts (int) / rank_level (int)
  *   quizzes  : id / week_key (text) / category (text 'politics'|'economy')
- *              question (text) / option_a..option_d (text) / correct_option (text 'A'..'D')
- *   answers  : id / user_id (uuid) / quiz_id / attempt_id (uuid)
- *              week_key (text) / category (text) / selected_option (text 'A'..'D')
- *              is_correct (bool) / created_at (timestamptz)
+ *              question / option_a..option_d / correct_option ('A'..'D')
+ *   answers  : id / user_id / quiz_id / attempt_id / week_key / category
+ *              selected_option / is_correct / created_at
  * ===================================================================== */
 
 const NewsQuiz = (() => {
 
-  // ===== 設定（GitHub Pages にデプロイする前に書き換えてください）=====
+ // ===== 設定（GitHub Pages にデプロイする前に書き換えてください）=====
   const SUPABASE_URL      = 'https://alpshubuznjyyxuvnzhx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscHNodWJ1em5qeXl4dXZuemh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc5MTQ5MSwiZXhwIjoyMDkzMzY3NDkxfQ.cJ_thMU1tS3LCTIiIBOHHDHaxtYVt1WR6byPF7dNo3A';
+
+  // localStorage キー
+  const LS_USER_ID    = 'newsquiz_user_id';
+  const LS_GUEST_NAME = 'newsquiz_guest_name';
 
   // ===== ランク（rank_level: 0〜15）=====
   const RANK_NAMES = [
@@ -46,7 +49,6 @@ const NewsQuiz = (() => {
     4000, 6000, 8500, 12000, 17000, 24000, 35000, 50000,
   ];
 
-  // 背景クラス（CSS 側の .rank-student / .rank-official / .rank-bureau / .rank-diet / .rank-pm）
   function rankClassFor(level) {
     if (level <= 1)  return 'rank-student';
     if (level <= 3)  return 'rank-official';
@@ -59,73 +61,101 @@ const NewsQuiz = (() => {
   let _client = null;
   function getClient() {
     if (!_client) {
-      _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,   // OAuth コールバックを自動検出
+        },
+      });
     }
     return _client;
   }
 
-  // ゲスト名 → 擬似メール（Supabase Auth はメール必須なので変換）
-  function nameToEmail(name) {
-    const safe = (name || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    return `${safe}@news-quiz.local`;
-  }
-
-  // ===== 認証 =====
-  async function signUp(name, password) {
+  // ===== Google OAuth =====
+  async function signInWithGoogle() {
     const sb = getClient();
-    const email = nameToEmail(name);
-
-    // 1. auth ユーザー作成
-    const { data: signData, error: signErr } = await sb.auth.signUp({ email, password });
-    if (signErr) throw signErr;
-
-    // 2. セッションが無ければサインインしてセッションを得る
-    if (!signData.session) {
-      const r = await sb.auth.signInWithPassword({ email, password });
-      if (r.error) throw r.error;
-    }
-
-    const { data: { user } } = await sb.auth.getUser();
-    if (!user) throw new Error('セッションを取得できませんでした');
-
-    // 3. users テーブルにプロフィールを作成
-    const { error: profErr } = await sb.from('users').insert({
-      id:             user.id,
-      guest_name:     name.trim(),
-      total_score:    0,
-      total_attempts: 0,
-      rank_level:     0,
-    });
-    if (profErr) throw profErr;
-
-    // 4. 一旦サインアウト（ログイン画面に戻すため）
-    await sb.auth.signOut();
-  }
-
-  async function signIn(name, password) {
-    const sb = getClient();
-    const { data, error } = await sb.auth.signInWithPassword({
-      email: nameToEmail(name),
-      password,
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // ログイン後にこのページに戻ってくる
+        redirectTo: window.location.origin + window.location.pathname,
+      },
     });
     if (error) throw error;
-    return data.user;
+    // ここで Google にリダイレクトされる
   }
 
-  async function signOut() {
-    await getClient().auth.signOut();
-  }
-
-  async function requireLogin() {
+  // OAuth コールバック後に Supabase が認識しているユーザーを返す
+  async function getAuthUser() {
     const { data: { user } } = await getClient().auth.getUser();
-    if (!user) {
-      location.href = 'index.html';
-      return null;
-    }
     return user;
   }
 
-  // ===== プロフィール =====
+  // users テーブルにプロフィールが存在するか調べる（無ければ null）
+  async function findProfile(uid) {
+    const { data, error } = await getClient()
+      .from('users')
+      .select('id, guest_name, total_score, total_attempts, rank_level')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  // 初回ログイン時に users テーブルにプロフィールを作成
+  async function createProfile(uid, guestName) {
+    const name = (guestName || '').trim();
+    if (!name) throw new Error('ゲスト名を入力してください');
+
+    const { error } = await getClient()
+      .from('users')
+      .insert({
+        id:             uid,
+        guest_name:     name,
+        rank_level:     0,
+        total_score:    0,
+        total_attempts: 0,
+      });
+    if (error) throw error;
+  }
+
+  // ===== localStorage 管理 =====
+  function setLocalAuth(uid, guestName) {
+    localStorage.setItem(LS_USER_ID,    uid);
+    localStorage.setItem(LS_GUEST_NAME, guestName);
+  }
+
+  function clearLocalAuth() {
+    localStorage.removeItem(LS_USER_ID);
+    localStorage.removeItem(LS_GUEST_NAME);
+  }
+
+  function getLocalAuth() {
+    const uid  = localStorage.getItem(LS_USER_ID);
+    const name = localStorage.getItem(LS_GUEST_NAME);
+    if (!uid) return null;
+    return { id: uid, guest_name: name };
+  }
+
+  // 全ページ共通：未ログインなら index.html へリダイレクト
+  // 戻り値は { id, guest_name } か null
+  async function requireLogin() {
+    const local = getLocalAuth();
+    if (!local) {
+      location.replace('index.html');
+      return null;
+    }
+    return local;
+  }
+
+  // ===== ログアウト =====
+  async function signOut() {
+    try { await getClient().auth.signOut(); } catch (_) {}
+    clearLocalAuth();
+  }
+
+  // ===== プロフィール（最新値を取りに行く）=====
   async function getProfile(userId) {
     const { data, error } = await getClient()
       .from('users')
@@ -140,7 +170,6 @@ const NewsQuiz = (() => {
   async function getLatestQuizzes() {
     const sb = getClient();
 
-    // まず最新の week_key を取得
     const { data: latest, error: e1 } = await sb
       .from('quizzes')
       .select('week_key')
@@ -151,7 +180,6 @@ const NewsQuiz = (() => {
 
     const weekKey = latest[0].week_key;
 
-    // その week_key の問題をすべて取得
     const { data, error } = await sb
       .from('quizzes')
       .select('id, week_key, category, question, option_a, option_b, option_c, option_d, correct_option')
@@ -170,7 +198,6 @@ const NewsQuiz = (() => {
     return [...new Set((data || []).map(q => q.week_key))];
   }
 
-  // 指定週の総問題数（"X / Y" の Y を出すため）
   async function getQuizCount(weekKey) {
     const { count, error } = await getClient()
       .from('quizzes')
@@ -184,11 +211,9 @@ const NewsQuiz = (() => {
   async function submitAnswers(userId, quizzes, answers) {
     const sb = getClient();
 
-    // 同一受験を識別するための ID
     const attemptId = (window.crypto?.randomUUID?.()) ||
       `att_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    // answers は 'A' / 'B' / 'C' / 'D' の配列
     const rows = quizzes.map((q, i) => ({
       user_id:         userId,
       quiz_id:         q.id,
@@ -204,7 +229,6 @@ const NewsQuiz = (() => {
 
     const score = rows.filter(r => r.is_correct).length;
 
-    // プロフィール更新
     const profile     = await getProfile(userId);
     const newScore    = profile.total_score    + score;
     const newAttempts = profile.total_attempts + 1;
@@ -244,7 +268,6 @@ const NewsQuiz = (() => {
       .order('created_at', { ascending: false });
     if (error) throw error;
 
-    // attempt_id でグルーピングして 1 受験 1 行にまとめる
     const groups = new Map();
     for (const r of rows || []) {
       if (!groups.has(r.attempt_id)) {
@@ -272,7 +295,6 @@ const NewsQuiz = (() => {
       (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
 
-    // 今週のスコア = 最新 week_key で最も新しい受験
     const { data: latest } = await sb
       .from('quizzes')
       .select('week_key')
@@ -289,7 +311,7 @@ const NewsQuiz = (() => {
     };
   }
 
-  // ===== 他人の成績（指定週で受験した全ユーザー）=====
+  // ===== 他人の成績 =====
   async function getOthersStats(weekKey) {
     const sb = getClient();
 
@@ -300,14 +322,12 @@ const NewsQuiz = (() => {
     if (error) throw error;
     if (!rows || rows.length === 0) return [];
 
-    // (user_id, attempt_id) ごとに正解数をカウント
     const scoreMap = new Map();
     for (const r of rows) {
       const k = `${r.user_id}|${r.attempt_id}`;
       scoreMap.set(k, (scoreMap.get(k) || 0) + (r.is_correct ? 1 : 0));
     }
 
-    // ユーザーごとのベストスコア
     const bestByUser = new Map();
     for (const [k, score] of scoreMap.entries()) {
       const [userId] = k.split('|');
@@ -316,7 +336,6 @@ const NewsQuiz = (() => {
       }
     }
 
-    // ユーザー名・ランクを取得して結合
     const userIds = [...bestByUser.keys()];
     const { data: users, error: e2 } = await sb
       .from('users')
@@ -338,7 +357,7 @@ const NewsQuiz = (() => {
       .sort((a, b) => b.score - a.score);
   }
 
-  // ===== ランキング（受験回数 × 累計得点）=====
+  // ===== ランキング =====
   async function getRanking() {
     const { data, error } = await getClient()
       .from('users')
@@ -376,11 +395,16 @@ const NewsQuiz = (() => {
   return {
     SUPABASE_URL,
     RANK_NAMES, RANK_THRESHOLDS,
-    signUp, signIn, signOut, requireLogin,
+    // 認証
+    signInWithGoogle, getAuthUser, findProfile, createProfile,
+    setLocalAuth, clearLocalAuth, getLocalAuth,
+    requireLogin, signOut,
+    // データ
     getProfile,
     getLatestQuizzes, getAllWeeks, getQuizCount,
     submitAnswers, calculateRank,
     getMyStats, getOthersStats, getRanking,
+    // UI
     applyRankClass, categoryLabel, categoryClass, showMsg,
   };
 })();
